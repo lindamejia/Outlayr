@@ -1,2 +1,2 @@
-# Outlayr-Cart
+# Outlayr
 Shopping Cart
