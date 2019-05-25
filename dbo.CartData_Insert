@@ -1,0 +1,129 @@
+USE [C68]
+GO
+/****** Object:  StoredProcedure [dbo].[CartData_Insert_V2]    Script Date: 5/25/2019 2:06:34 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[CartData_Insert_V2]
+
+	@Id INT OUTPUT,
+	@UserId INT,
+	@MerchantId INT,
+	@ProductId INT,
+	@SocialMedia INT,
+	@CampaignId INT,
+	@InfluencerId INT,
+	@Quantity INT,
+	@Tax DECIMAL(5,4),
+	@ShippingCost DECIMAL(18,0),
+	@Subtotal DECIMAL(18,2),
+	@BillingAddressId INT,
+	@ShippingAddressId INT,
+	@PaymentTokenId INT
+
+AS
+
+/*
+
+	DECLARE
+		@Id INT,
+		@UserId INT = 94,
+		@MerchantId INT = 170,
+		@ProductId INT = 188,
+		@SocialMedia INT = 1,
+		@CampaignId INT = 98,
+		@InfluencerId INT = 81,
+		@Quantity INT = 45,
+		@Tax DECIMAL(5,4) = 0.09,
+		@ShippingCost DECIMAL(18,0) = 5.00,
+		@Subtotal DECIMAL(18,2) = 400.00,
+		@BillingAddressId INT = 346,
+		@ShippingAddressId INT = 346,
+		@PaymentTokenId INT = 1
+
+	EXEC dbo.CartData_InsertV2
+		@Id OUTPUT,
+		@UserId,
+		@MerchantId,
+		@ProductId,
+		@SocialMedia,
+		@CampaignId,
+		@InfluencerId,
+		@Quantity,
+		@Tax,
+		@ShippingCost,
+		@Subtotal,
+		@BillingAddressId,
+		@ShippingAddressId,
+		@PaymentTokenId
+
+		SELECT *
+		FROM dbo.CartData
+
+		delete from dbo.cartdata where userId=94
+
+*/
+
+
+Begin tran
+if exists (select * from CartData with (updlock,serializable) where ProductId = @ProductId AND UserId= @UserId)
+begin
+
+   UPDATE dbo.CartData
+	
+	SET
+		Quantity = Quantity + @Quantity
+   where ProductId = @ProductId AND UserId = @UserId
+   Select @Id = Id FROM dbo.CartData WHERE ProductId = @ProductId AND UserId = @UserId
+ 
+  -- set @Id=
+
+end
+
+else
+
+BEGIN
+  
+
+
+	INSERT INTO dbo.CartData
+		(
+		 UserId,
+		 MerchantId,
+		 ProductId,
+		 SocialMedia,
+		 CampaignId,
+		 InfluencerId,
+		 Quantity,
+		 Tax,
+		 ShippingCost,
+		 Subtotal,
+		 BillingAddressId,
+		 ShippingAddressId,
+		 PaymentTokenId
+		)
+	VALUES
+		(
+		 @UserId,
+		 @MerchantId,
+		 @ProductId,
+		 @SocialMedia,
+		 @CampaignId,
+		 @InfluencerId,
+		 @Quantity,
+		 @Tax,
+		 @ShippingCost,
+		 @Subtotal,
+		 @BillingAddressId,
+		 @ShippingAddressId,
+		 @PaymentTokenId
+		)
+		
+		
+
+	SET @Id = SCOPE_IDENTITY();
+
+END
+
+commit tran
