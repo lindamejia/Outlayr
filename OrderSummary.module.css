@@ -1,0 +1,80 @@
+
+.orderSummary{
+    position: fixed;
+  }
+  
+  .summary{
+    font-weight:normal;
+    border:none;
+    display: block;
+  }
+
+  @media (max-width: 991px) {
+    .orderSummary {
+        position: static;
+        width: 100%;
+    }
+
+     .imgStyle  {
+      position: "center";
+     height: 100px;
+      width: 100px;
+    } 
+
+}
+
+@media (max-width: 599px)  {
+
+    /* Force table to not be like tables anymore */
+    table, thead, tbody, th, td, tr { 
+          display: block;
+          border-collapse:collapse;  
+    }
+    
+    /* Hide table headers (but not display: none;, for accessibility) */
+    th { 
+		position: absolute;
+		top: -9999px;
+		left: -9999px;
+	}
+
+    tr { border: none }
+    
+    td { 
+      /* Behave  like a "row" */
+      border: none;
+      border-bottom:none;
+      /* border-bottom: 1px solid #eee;  */
+      position: relative;
+      padding-left: 50%; 
+      padding-bottom: 25px;
+    }
+    
+   .orderSummary tr:before { 
+      /* Now like a table header */
+      position: center;
+      /* Top/left values mimic padding */
+      top: 1px;
+      left: 6px;
+      width: 45%; 
+      padding-right: 10px; 
+      /* white-space: nowrap; */
+      font-weight: bold;
+      font-size: 10px;
+    }
+
+    .imgStyle  {
+      position: "center";
+     height: 300px;
+      width: 300px;
+    } 
+    
+    /*
+    Label the data
+    */
+    .orderSummary tr:nth-of-type(1):before { content: "Subtotal:"; }
+    .orderSummary tr:nth-of-type(2):before { content: "Shipping:"; }
+    .orderSummary tr:nth-of-type(3):before { content: "Estimated Tax:"; }
+    .orderSummary tr:nth-of-type(4):before { content: "Total Price:"; }
+
+    }	
