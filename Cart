@@ -1,0 +1,492 @@
+import React from "react";
+import * as cartDataService from "../../services/cartDataService";
+import * as ordersService from "../../services/orders/ordersService";
+import { Table } from "reactstrap";
+import PropTypes from "prop-types";
+import {
+  Dropdown,
+  DropdownToggle,
+  DropdownMenu,
+  DropdownItem,
+  Alert
+} from "reactstrap";
+import styles from "../cart/Cart.module.css";
+import style from "../cart/OrderSummary.module.css";
+import logger from "../../logger";
+import SweetAlert from "react-bootstrap-sweetalert";
+
+const _logger = logger.extend("Cart");
+
+class Cart extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      dropdownOpen: false,
+      cartData: [],
+      cartDisplayData: [],
+      cartNames: [],
+      subtotal: 0,
+      merchantSelected: false,
+      cartQuantity: 0,
+      merchantId: "",
+      noInventory: false,
+      sweetAlert: false
+    };
+  }
+
+  componentDidMount() {
+    cartDataService
+      .GetByUserID()
+      .then(this.cartDataSuccess)
+      .catch(this.cartDataError);
+  }
+
+  toggle = () => {
+    this.setState(prevState => ({
+      dropdownOpen: !prevState.dropdownOpen
+    }));
+  };
+
+  cartDataSuccess = data => {
+    const cartQuantity = this.getCartQuantity(data.items);
+    const subtotal = this.getSubtotal(data.items);
+    const firstNamesArray = data.items.map(cart => cart.firstName);
+    const firstNamesArrayNoDuplicates = Array.from(new Set(firstNamesArray));
+    this.setState({
+      cartQuantity,
+      subtotal,
+      cartData: data.items,
+      cartDisplayData: data.items,
+      cartNames: firstNamesArrayNoDuplicates,
+      merchantSelected: firstNamesArray.length === 1 ? true : false,
+      sweetAlert: firstNamesArray.length < 0 ? true : false,
+      merchantId: firstNamesArray.length === 1 ? data.items[0].merchantId : ""
+    });
+  };
+
+  cartDataError = err => {
+    _logger(err);
+  };
+
+  //#region Merchant Dropdown
+
+  mapMerchantsList = () => {
+    const merchantDropdown = this.state.cartNames.map(firstName => (
+      <DropdownItem key={firstName} onClick={this.onDropdownSelected}>
+        {firstName}
+      </DropdownItem>
+    ));
+    return merchantDropdown;
+  };
+
+  onDropdownSelected = event => {
+    const firstName = event.target.innerText;
+    const firstNameArr = this.state.cartData.filter(
+      cart => cart.firstName === firstName
+    );
+    const merchantArr = firstNameArr.find(item => item.merchantId);
+    const subtotal = this.getSubtotal(firstNameArr);
+
+    this.setState({
+      cartDisplayData: firstNameArr,
+      subtotal,
+      merchantSelected: true,
+      merchantId: merchantArr.merchantId,
+      noInventory: false
+    });
+  };
+
+  //#endRegion
+
+  //#region Update Quantity
+  updateQuantityHandler = data => evt => {
+    _logger(data);
+    const quantity = parseInt(evt.target.value);
+    this.updateQuantity(data.productId, quantity);
+  };
+
+  updateQuantity = (productId, quantity) => {
+    const payload = {
+      productId: productId,
+      quantity: quantity
+    };
+
+    cartDataService
+      .UpdateCart(productId, payload)
+      .then(this.updateQuantitySuccess)
+      .catch(this.updateQuantityError);
+  };
+
+  updateQuantitySuccess = res => {
+    _logger(res);
+    cartDataService
+      .GetByUserID()
+      .then(this.cartDataSuccess)
+      .catch(this.cartDataError);
+    window.location.reload();
+  };
+
+  updateQuantityError = err => {
+    _logger(err);
+  };
+  //#endregion
+
+  getSubtotal = data => {
+    if (data === undefined) {
+      return null;
+    } else {
+      const subtotal = data.map(e => e.totalItemPrice).reduce((a, b) => a + b);
+      return subtotal;
+    }
+  };
+
+  getCartQuantity = data => {
+    if (data === undefined) {
+      return null;
+    } else {
+      const cartQuantity = data.map(e => e.quantity).reduce((a, b) => a + b);
+      return cartQuantity;
+    }
+  };
+
+  viewAllHandler = () => {
+    cartDataService
+      .GetByUserID()
+      .then(this.cartDataSuccess)
+      .catch(this.cartViewAllError);
+    this.setState({
+      merchantSelected: false,
+      noInventory: false
+    });
+  };
+
+  cartViewAllError = () => {
+    this.setState({ sweetAlert: true });
+  };
+
+  getProducts = () => {
+    const productData =
+      this.state.cartDisplayData === undefined ||
+      this.state.cartDisplayData.length < 1 ? (
+        <h5>
+          {" "}
+          <br />
+          Your cart is currently empty!
+        </h5>
+      ) : (
+        this.state.cartDisplayData.map(data => (
+          <tr key={data.productId} className={styles.mainTable}>
+            <td>
+              <img
+                className={styles.imgStyle}
+                src={data.product.mainImage}
+                alt="img"
+              />
+            </td>
+            {/* <td>{data.productId}</td> */}
+            <td>{data.firstName}</td>
+            <td>
+              {data.product.title}
+              <br />
+              <span
+                className={styles.remove}
+                onClick={this.productDetailsHandler(data)}
+              >
+                View Product Details
+              </span>
+            </td>
+
+            <td>
+              {new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD"
+              }).format(data.product.basePrice)}
+            </td>
+            <td>${data.shipping}</td>
+            <td>
+              <select
+                className="custom-select"
+                defaultValue={data.quantity}
+                onChange={this.updateQuantityHandler(data)}
+              >
+                <option value="1" className="form-control">
+                  1
+                </option>
+                <option value="2" className="form-control">
+                  2
+                </option>
+                <option value="3" className="form-control">
+                  3
+                </option>
+                <option value="4" className="form-control">
+                  4
+                </option>
+                <option value="5" className="form-control">
+                  5
+                </option>
+                <option value="6" className="form-control">
+                  6
+                </option>
+                <option value="7" className="form-control">
+                  7
+                </option>
+                <option value="8" className="form-control">
+                  8
+                </option>
+                <option value="9" className="form-control">
+                  9
+                </option>
+                <option value="10" className="form-control">
+                  10
+                </option>
+              </select>
+              {this.state.noInventory ? (
+                <Alert color="danger">Sorry, this product is sold out.</Alert>
+              ) : (
+                <span />
+              )}
+              <span
+                className={styles.remove}
+                onClick={this.removeHandler(data)}
+              >
+                Remove
+              </span>
+              <br />
+              <span
+                className={styles.remove}
+                onClick={this.checkoutByProductHandler(data)}
+              >
+                Buy this product only
+              </span>
+            </td>
+          </tr>
+        ))
+      );
+
+    return productData;
+  };
+
+  //#region checkout by MERCHANT
+  proceedToCheckout = () => {
+    this.checkoutByMerchant(this.state.merchantId);
+  };
+
+  checkoutByMerchant = merchantId => {
+    ordersService
+      .insertFromCart(merchantId)
+      .then(this.checkoutSuccess)
+      .catch(this.checkoutError);
+  };
+
+  checkoutSuccess = data => {
+    _logger(data);
+    this.props.history.push(`orders/details/${data.item}`);
+  };
+
+  checkoutError = err => {
+    _logger(err);
+    this.setState({ noInventory: true });
+  };
+  //#end region
+
+  //#region checkout by Product
+  checkoutByProductHandler = data => evt => {
+    evt.preventDefault();
+    ordersService
+      .insertFromCartByProduct(data.merchantId, data.productId)
+      .then(this.checkoutSuccess)
+      .catch(this.checkoutByProductError);
+  };
+
+  checkoutByProductError = err => {
+    _logger(err);
+    this.checkoutByProductErrAlert(data);
+  };
+
+  //#end region
+
+  //#region Remove from Cart
+  removeHandler = data => evt => {
+    evt.preventDefault();
+    this.removeFromCart(data.productId);
+  };
+
+  removeFromCart = productId => {
+    cartDataService
+      .DeleteCart(productId)
+      .then(this.DeleteCartSuccess)
+      .catch(this.DeleteCartError);
+  };
+
+  DeleteCartSuccess = res => {
+    _logger("cart data deleted:", res);
+    cartDataService
+      .GetByUserID()
+      .then(this.cartDataSuccess)
+      .catch(this.cartDataSuccess);
+  };
+
+  DeleteCartError = err => {
+    _logger(err);
+  };
+
+  //#endregion
+
+  setSweetAlert = () => {
+    this.setState({ sweetAlert: false });
+  };
+
+  //#region Remove from Cart
+  productDetailsHandler = data => evt => {
+    evt.preventDefault();
+    this.productDetails(data.merchantId, data.productId);
+  };
+
+  productDetails = (merchantId, productId) => {
+    this.props.history.push(`addtocart/${merchantId}/${productId}`);
+  };
+
+  //#endregion
+
+  render() {
+    return (
+      <>
+        <div className="row">
+          <div className="col-lg-9 col-md-12 mb-4">
+            <div className={styles.mainTable}>
+              <div className="card">
+                <div className="pl-2 pr-2">
+                  <div className="card-body pb-0">
+                    <div className="no-block">
+                      <h4 className="card-title pull-left mt-1 mr-2">
+                        Shopping Cart
+                      </h4>
+
+                      <Dropdown
+                        className="pull-right"
+                        isOpen={this.state.dropdownOpen}
+                        toggle={this.toggle}
+                        type="select"
+                        label="Select Merchant"
+                        multiple
+                      >
+                        <DropdownToggle color="info" caret>
+                          Select Merchant
+                        </DropdownToggle>
+                        <DropdownMenu onChange={this.onDropdownSelected}>
+                          <DropdownItem onClick={this.viewAllHandler}>
+                            View All
+                          </DropdownItem>
+                          {this.mapMerchantsList()}
+                        </DropdownMenu>
+                      </Dropdown>
+                    </div>
+                  </div>
+
+                  <div className="table-responsive card-body">
+                    <div />
+                    <Table
+                      id="demo-foo-addrow"
+                      className="table"
+                      data-paging="true"
+                      data-paging-size="8"
+                    >
+                      <thead>
+                        <tr>
+                          <th>Image</th>
+                          {/* <th className={styles.productId}>Product Id</th> */}
+                          <th>Merchant</th>
+                          <th>Description</th>
+                          <th>Price</th>
+                          <th>Shipping</th>
+                          <th>Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody>{this.getProducts()}</tbody>
+                    </Table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="col-lg-3 col-md-6 mb-4">
+            <div className={style.orderSummary}>
+              <div className="card">
+                <div className="pl-2 pr-2">
+                  <div className="card-body pb-0">
+                    <div className="no-block">
+                      <h4 className="card-title pull-left mt-1 mr-2">
+                        Order Summary
+                      </h4>
+                    </div>
+                  </div>
+                  <div className="table-responsive card-body">
+                    <Table
+                      id="demo-foo-addrow"
+                      data-paging="true"
+                      data-paging-size="7"
+                    >
+                      <tr>
+                        <th className={style.summary}>Subtotal:</th>
+                        <td className="text-right pr-0">
+                          {new Intl.NumberFormat("en-US", {
+                            style: "currency",
+                            currency: "USD"
+                          }).format(this.state.subtotal)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <th className={style.summary}>Shipping:</th>
+                        <td className="text-right pr-0">$0.00</td>{" "}
+                      </tr>
+                      <tr>
+                        <th className={style.summary}>Estimated Tax:</th>
+                        <td className="text-right pr-0">$0.00</td>{" "}
+                      </tr>
+                      <tr>
+                        <th>Total Price:</th>
+                        <td className="text-right pr-0">
+                          {new Intl.NumberFormat("en-US", {
+                            style: "currency",
+                            currency: "USD"
+                          }).format(this.state.subtotal)}
+                        </td>{" "}
+                      </tr>
+                      {this.state.merchantSelected ? (
+                        <button
+                          style={{ float: "right" }}
+                          className="btn btn-success"
+                          onClick={this.proceedToCheckout}
+                        >
+                          <i className="ti-shopping-cart-full" /> Proceed to
+                          Checkout
+                        </button>
+                      ) : (
+                        <Alert color="danger">Please select a merchant!</Alert>
+                      )}
+                    </Table>
+                  </div>
+                  {this.state.sweetAlert && (
+                    <SweetAlert custom onConfirm={this.setSweetAlert} title="">
+                      <div className="round round-lg align-self-center round-primary">
+                        <i className="mdi mdi-cart-outline" />
+                      </div>
+                      <br />
+                      <h3>Your cart is currently empty!</h3>
+                    </SweetAlert>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+}
+
+Cart.propTypes = {
+  history: PropTypes.object.isRequired
+};
+
+export default Cart;
